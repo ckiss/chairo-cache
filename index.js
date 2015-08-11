@@ -38,17 +38,18 @@ module.exports.register = function (server, options, next) {
     // Recreate the mappings so the cmd names point to our proxied actions.
     rewrittenMappingArgs.use.map = {};
     _.each(use.map, function (mapping, cmd) {
-      var expiresIn = mapping.expiresIn;
+      var expiresInMs = Number(mapping.expiresIn) || 0;
+      var expiresInS = Math.round(expiresInMs / 1000);
       var privacy = mapping.privacy === 'public' ? 'public' : 'private';
       var name = namePrefix + cmd.replace(/[-]/g, '_');
       rewrittenMappingArgs.use.map[name] = mapping;
 
       var cache;
 
-      if (expiresIn) {
+      if (expiresInMs) {
         cache = server.cache({
           cache: cacheName,
-          expiresIn: expiresIn,
+          expiresIn: expiresInMs,
           segment: 'chairo_cache_' + name,
           generateFunc: function (key, next) {
             seneca.act(key, next);
@@ -84,7 +85,7 @@ module.exports.register = function (server, options, next) {
 
           // Add the new directives based on mapping settings.
           directives.push(privacy);
-          directives.push('max-age=' + expiresIn); // TODO some time values ar s and some are ms.
+          directives.push('max-age=' + expiresInS);
 
           _.set(result, 'http$.headers.Cache-Control', directives.join(', '));
 
