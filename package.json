@@ -1,0 +1,18 @@
+{
+  "name": "chairo-cache",
+  "version": "0.1.0",
+  "description": "Cache seneca-web route results using a Hapi cache.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "chairo",
+    "seneca",
+    "hapi",
+    "cache",
+    "caching"
+  ],
+  "author": "William Riley-Land",
+  "license": "MIT"
+}
