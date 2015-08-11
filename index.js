@@ -6,6 +6,8 @@ var pkg = require('./package');
 var plugin = pkg.name;
 
 module.exports.register = function (server, options, next) {
+  var cacheName = options.cacheName;
+
   // Intercept role:web,use:... to add Hapi caching.
   server.seneca.add({ role: 'web' }, function (args, done) {
     var seneca = this;
@@ -23,28 +25,30 @@ module.exports.register = function (server, options, next) {
     if (!use) return skipRewrite();
     // Don't intercept when called with Express middleware.
     if (typeof use === 'function') return skipRewrite();
-    // For some reason setting up a proxy for /auth does not work.  
-    // TODO // Maybe because it uses { POST: function () {...} } or some other option. 
+    // For some reason setting up a proxy for /auth does not work.
+    // TODO // Maybe because it uses { POST: function () {...} } or some other option.
     if (use.prefix === '/auth') return skipRewrite();
 
     var role = use.pin.role;
     var namePrefix = role.replace(/[-]/g, '_') + '_';
- 
+
     // Overwrite the mapping role to use our proxied seneca actions.
     rewrittenMappingArgs.use.pin.role = plugin;
 
     // Recreate the mappings so the cmd names point to our proxied actions.
     rewrittenMappingArgs.use.map = {};
     _.each(use.map, function (mapping, cmd) {
+      var expiresIn = mapping.expiresIn;
+      var privacy = mapping.privacy === 'public' ? 'public' : 'private';
       var name = namePrefix + cmd.replace(/[-]/g, '_');
       rewrittenMappingArgs.use.map[name] = mapping;
 
       var cache;
 
-      if (mapping.exipresIn) {
+      if (expiresIn) {
         cache = server.cache({
-          cache: 'cd-cache',
-          expiresIn: mapping.expiresIn,
+          cache: cacheName,
+          expiresIn: expiresIn,
           segment: 'chairo_cache_' + name,
           generateFunc: function (key, next) {
             seneca.act(key, next);
@@ -54,8 +58,6 @@ module.exports.register = function (server, options, next) {
 
       // Create a proxy seneca action that checks the Hapi cache.
       seneca.add({ role: plugin, cmd: name }, function (args, done) {
-        // TODO // make sure etag header is present from hapi-etag
-        // TODO // make sure cache-control info is compatible with etag
         var proxiedActionArgs = seneca.util.argprops(
           {fatal$: false, req$: args.req$, res$: args.res$ },
           args,
@@ -67,13 +69,31 @@ module.exports.register = function (server, options, next) {
 
         cache.get(proxiedActionArgs, function (error, result) {
           if (error) return done(error);
-          // TODO set result.http$ cache-control headers based on expiresIn
+
+          // Get the current values, removing privacy and max-age directives.
+          var directives = _.chain(result)
+            .get('http$.headers.Cache-Control', '')
+            .split(/\s*,\s*/)
+            .filter(function (item) {
+              if (item === 'public') return false;
+              if (item === 'private') return false;
+              if (item.startWith('max-age')) return false;
+              return true;
+            })
+            .value();
+
+          // Add the new directives based on mapping settings.
+          directives.push(privacy);
+          directives.push('max-age=' + expiresIn); // TODO some time values ar s and some are ms.
+
+          _.set(result, 'http$.headers.Cache-Control', directives.join(', '));
+
           done(null, result);
         });
       });
     });
- 
-    seneca.parent(rewrittenMappingArgs, done); 
+
+    seneca.parent(rewrittenMappingArgs, done);
   });
 
   next();
