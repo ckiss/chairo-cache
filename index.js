@@ -78,7 +78,7 @@ module.exports.register = function (server, options, next) {
             .filter(function (item) {
               if (item === 'public') return false;
               if (item === 'private') return false;
-              if (_.startWith(item, 'max-age')) return false;
+              if (_.startsWith(item, 'max-age')) return false;
               return true;
             })
             .value();

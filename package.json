@@ -1,6 +1,6 @@
 {
   "name": "chairo-cache",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Cache seneca-web route results using a Hapi cache.",
   "main": "index.js",
   "scripts": {
