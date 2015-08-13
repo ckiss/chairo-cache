@@ -40,6 +40,7 @@ module.exports.register = function (server, options, next) {
     _.each(use.map, function (mapping, cmd) {
       var expiresInWasSet = Number.isFinite(mapping.expiresIn);
       var expiresInMs = expiresInWasSet ? mapping.expiresIn : undefined;
+      var privacy = mapping.privacy;
       var name = namePrefix + cmd.replace(/[-]/g, '_');
       rewrittenMappingArgs.use.map[name] = mapping;
 
