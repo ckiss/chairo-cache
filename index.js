@@ -39,12 +39,14 @@ module.exports.register = function (server, options, next) {
     rewrittenMappingArgs.use.map = {};
     _.each(use.map, function (mapping, cmd) {
       var expiresInWasSet = Number.isFinite(mapping.expiresIn);
-      var expiresInMs = expiresInWasSet ? mapping.expiresIn : undefined;
-      var privacy = mapping.privacy;
+      var expiresInMs = mapping.expiresIn >= 0 ? mapping.expiresIn : 0;
+      var privayWasSet = (mapping.privacy === 'public' || mapping.privacy === 'private');
+      var privacy = mapping.privacy || 'private';
+      var anySettingsWereSet = privacyWasSet || expiresInWasSet;
       var name = namePrefix + cmd.replace(/[-]/g, '_');
-      rewrittenMappingArgs.use.map[name] = mapping;
-
       var cache;
+
+      rewrittenMappingArgs.use.map[name] = mapping;
 
       if (expiresInWasSet && expiresInMs > 0) {
         cache = server.cache({
@@ -85,21 +87,15 @@ module.exports.register = function (server, options, next) {
             .filter(_.identity)
             .value();
 
-          // Add the new directives based on mapping settings.
-          if (privacy === 'private' || privacy === 'public') {
+          if (anySettingsWereSet) {
             directives = _.filter(directives, function (item) {
               if (item === 'public') return false;
               if (item === 'private') return false;
-              return true;
-            });
-            directives.push(privacy);
-          }
-
-          if (expiresInWasSet && expiresInMs >= 0) {
-            directives = _.filter(directives, function (item) {
               if (_.startsWith(item, 'max-age')) return false;
               return true;
             });
+
+            directives.push(privacy);
             directives.push('max-age=' + Math.round(expiresInMs / 1000));
           }
 
