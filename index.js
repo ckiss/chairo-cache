@@ -67,10 +67,10 @@ module.exports.register = function (server, options, next) {
         var proxiedAction;
 
         if (cache) {
-          proxiedAction = _.bind(seneca.act, seneca, proxiedActionArgs);
+          proxiedAction = _.bind(cache.get, cache, proxiedActionArgs);
         }
         else {
-          proxiedAction = _.bind(cache.get, cache, proxiedActionArgs);
+          proxiedAction = _.bind(seneca.act, seneca, proxiedActionArgs);
         }
 
         proxiedAction(function (error, result) {
