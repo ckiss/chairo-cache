@@ -39,7 +39,7 @@ module.exports.register = function (server, options, next) {
     rewrittenMappingArgs.use.map = {};
     _.each(use.map, function (mapping, cmd) {
       var expiresInWasSet = Number.isFinite(mapping.expiresIn);
-      var expiresInMs = mapping.expiresIn >= 0 ? mapping.expiresIn : 0;
+      var expiresInMs = 0;
       var privacyWasSet = (mapping.privacy === 'public' || mapping.privacy === 'private');
       var privacy = mapping.privacy || 'private';
       var anySettingsWereSet = privacyWasSet || expiresInWasSet;
@@ -48,7 +48,9 @@ module.exports.register = function (server, options, next) {
 
       rewrittenMappingArgs.use.map[name] = mapping;
 
-      if (expiresInWasSet && expiresInMs > 0) {
+      if (expiresInWasSet && mapping.expiresInMs > 0) {
+        expiresInMs = mapping.expiresInMs;
+
         cache = server.cache({
           cache: cacheName,
           expiresIn: expiresInMs,
@@ -91,11 +93,13 @@ module.exports.register = function (server, options, next) {
             directives = _.filter(directives, function (item) {
               if (item === 'public') return false;
               if (item === 'private') return false;
+              if (item === 'must-revalidate') return false;
               if (_.startsWith(item, 'max-age')) return false;
               return true;
             });
 
             directives.push(privacy);
+            directives.push('must-revalidate');
             directives.push('max-age=' + Math.round(expiresInMs / 1000));
           }
 
