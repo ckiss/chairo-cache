@@ -38,15 +38,14 @@ module.exports.register = function (server, options, next) {
     // Recreate the mappings so the cmd names point to our proxied actions.
     rewrittenMappingArgs.use.map = {};
     _.each(use.map, function (mapping, cmd) {
-      var expiresInMs = Number(mapping.expiresIn) || 0;
-      var expiresInS = Math.round(expiresInMs / 1000);
-      var privacy = mapping.privacy === 'public' ? 'public' : 'private';
+      var expiresInWasSet = Number.isFinite(mapping.expiresIn);
+      var expiresInMs = expiresInWasSet ? mapping.expiresIn : undefined;
       var name = namePrefix + cmd.replace(/[-]/g, '_');
       rewrittenMappingArgs.use.map[name] = mapping;
 
       var cache;
 
-      if (expiresInMs) {
+      if (expiresInWasSet && expiresInMs > 0) {
         cache = server.cache({
           cache: cacheName,
           expiresIn: expiresInMs,
@@ -64,11 +63,16 @@ module.exports.register = function (server, options, next) {
           args,
           { role: role, cmd: cmd });
 
-        if (!cache) {
-          return seneca.act(proxiedActionArgs, done);
+        var proxiedAction;
+
+        if (cache) {
+          proxiedAction = _.bind(seneca.act, seneca, proxiedActionArgs);
+        }
+        else {
+          proxiedAction = _.bind(cache.get, cache, proxiedActionArgs);
         }
 
-        cache.get(proxiedActionArgs, function (error, result) {
+        proxiedAction(function (error, result) {
           if (error) return done(error);
 
           result = result || {};
@@ -77,18 +81,26 @@ module.exports.register = function (server, options, next) {
           var directives = _.chain(result)
             .get('http$.headers.Cache-Control', '')
             .split(/\s*,\s*/)
-            .filter(function (item) {
-              if (!item) return false;
-              if (item === 'public') return false;
-              if (item === 'private') return false;
-              if (_.startsWith(item, 'max-age')) return false;
-              return true;
-            })
+            .filter(_.identity)
             .value();
 
           // Add the new directives based on mapping settings.
-          directives.push(privacy);
-          directives.push('max-age=' + expiresInS);
+          if (privacy === 'private' || privacy === 'public') {
+            directives = _.filter(directives, function (item) {
+              if (item === 'public') return false;
+              if (item === 'private') return false;
+              return true;
+            });
+            directives.push(privacy);
+          }
+
+          if (expiresInWasSet && expiresInMs >= 0) {
+            directives = _.filter(directives, function (item) {
+              if (_.startsWith(item, 'max-age')) return false;
+              return true;
+            });
+            directives.push('max-age=' + Math.round(expiresInMs / 1000));
+          }
 
           _.set(result, 'http$.headers.Cache-Control', directives.join(', '));
 
