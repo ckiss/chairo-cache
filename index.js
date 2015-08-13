@@ -25,7 +25,7 @@ module.exports.register = function (server, options, next) {
     if (!use) return skipRewrite();
     // Don't intercept when called with Express middleware.
     if (typeof use === 'function') return skipRewrite();
-    // For some reason setting up a proxy for /auth does not work.
+    // For some reason setting up a proxy for /auth (from seneca-auth) does not work.
     // TODO // Maybe because it uses { POST: function () {...} } or some other option.
     if (use.prefix === '/auth') return skipRewrite();
 
@@ -71,11 +71,14 @@ module.exports.register = function (server, options, next) {
         cache.get(proxiedActionArgs, function (error, result) {
           if (error) return done(error);
 
+          result = result || {};
+
           // Get the current values, removing privacy and max-age directives.
           var directives = _.chain(result)
             .get('http$.headers.Cache-Control', '')
             .split(/\s*,\s*/)
             .filter(function (item) {
+              if (!item) return false;
               if (item === 'public') return false;
               if (item === 'private') return false;
               if (_.startsWith(item, 'max-age')) return false;
