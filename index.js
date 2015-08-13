@@ -40,7 +40,7 @@ module.exports.register = function (server, options, next) {
     _.each(use.map, function (mapping, cmd) {
       var expiresInWasSet = Number.isFinite(mapping.expiresIn);
       var expiresInMs = mapping.expiresIn >= 0 ? mapping.expiresIn : 0;
-      var privayWasSet = (mapping.privacy === 'public' || mapping.privacy === 'private');
+      var privacyWasSet = (mapping.privacy === 'public' || mapping.privacy === 'private');
       var privacy = mapping.privacy || 'private';
       var anySettingsWereSet = privacyWasSet || expiresInWasSet;
       var name = namePrefix + cmd.replace(/[-]/g, '_');
