@@ -1,6 +1,6 @@
 {
   "name": "chairo-cache",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Cache seneca-web route results using a Hapi cache.",
   "main": "index.js",
   "scripts": {
@@ -17,6 +17,7 @@
   "license": "MIT",
   "repository": "https://github.com/wprl/chairo-cache",
   "dependencies": {
+    "debug": "^2.2.0",
     "lodash": "^3.10.1"
   }
 }

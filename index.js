@@ -2,6 +2,7 @@
 
 var _ = require('lodash');
 var pkg = require('./package');
+var debug = require('debug')('chairo-cache');
 
 var plugin = pkg.name;
 
@@ -39,18 +40,16 @@ module.exports.register = function (server, options, next) {
     rewrittenMappingArgs.use.map = {};
     _.each(use.map, function (mapping, cmd) {
       var expiresInWasSet = Number.isFinite(mapping.expiresIn);
-      var expiresInMs = 0;
+      var expiresInMs = expiresInWasSet ? mapping.expiresIn : 0;
       var privacyWasSet = (mapping.privacy === 'public' || mapping.privacy === 'private');
-      var privacy = mapping.privacy || 'private';
+      var privacy = (privacyWasSet && mapping.privacy) || 'private';
       var anySettingsWereSet = privacyWasSet || expiresInWasSet;
       var name = namePrefix + cmd.replace(/[-]/g, '_');
       var cache;
 
       rewrittenMappingArgs.use.map[name] = mapping;
 
-      if (expiresInWasSet && mapping.expiresInMs > 0) {
-        expiresInMs = mapping.expiresInMs;
-
+      if (expiresInMs > 0) {
         cache = server.cache({
           cache: cacheName,
           expiresIn: expiresInMs,
@@ -63,6 +62,10 @@ module.exports.register = function (server, options, next) {
 
       // Create a proxy seneca action that checks the Hapi cache.
       seneca.add({ role: plugin, cmd: name }, function (args, done) {
+        debug('Proxy action: %s', plugin, name);
+        debug('Expires in was %s: %s', expiresInWasSet ? 'set' : 'not set', expiresInMs);
+        debug('Privacy was %s: %s', privacyWasSet ? 'set' : 'not set', privacy);
+
         var proxiedActionArgs = seneca.util.argprops(
           {fatal$: false, req$: args.req$, res$: args.res$ },
           args,
@@ -89,6 +92,8 @@ module.exports.register = function (server, options, next) {
             .filter(_.identity)
             .value();
 
+          debug('initial directives: %o', directives);
+
           if (anySettingsWereSet) {
             directives = _.filter(directives, function (item) {
               if (item === 'public') return false;
@@ -98,10 +103,14 @@ module.exports.register = function (server, options, next) {
               return true;
             });
 
+            debug('filtered directives: %o', directives);
+
             directives.push(privacy);
             directives.push('must-revalidate');
             directives.push('max-age=' + Math.round(expiresInMs / 1000));
           }
+
+          debug('final directives: %o', directives);
 
           _.set(result, 'http$.headers.Cache-Control', directives.join(', '));
 
