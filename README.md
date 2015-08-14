@@ -1,9 +1,10 @@
 # chairo-cache
-Cache seneca-web route results using a Hapi cache.
+Cache seneca-web route results using a Hapi cache.  Also sets the response `Cache-Control` header to match server-side expiry time.
 
 ## Example
 
-Easy to add to your Hapi/Chairo front end:
+Be sure to enable `Cache-Control` headers for 304 status code responses.  The `Cache-Control` header for 304 responses should match what would be sent with the initial 200 response.  See [RFC 7234](https://tools.ietf.org/html/rfc7234#section-5.2).
+
 
 ```javascript
 
@@ -18,6 +19,11 @@ var server = new Hapi.Server({
   ]
 });
 
+// Enable Cache-Control headers on 304.
+server.connection({
+  routes: { cache: { statuses: [200,304] } }
+});
+
 server.register({ register: Chairo, options: options }, function (error) {
   if (error) throw error;
 
@@ -25,9 +31,9 @@ server.register({ register: Chairo, options: options }, function (error) {
     if (error) throw error;
 
     var seneca = server.seneca;
-   
+
     // ....
-  
+
   });
 });
 
