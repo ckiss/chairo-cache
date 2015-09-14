@@ -19,7 +19,7 @@ module.exports.register = function (server, options, next) {
       { role: args.role, cmd: args.cmd });
 
     function skipRewrite () {
-      seneca.parent(rewrittenMappingArgs, done);
+      seneca.prior(rewrittenMappingArgs, done);
     }
 
     // Only intercept patterns with the use arg.
@@ -119,7 +119,7 @@ module.exports.register = function (server, options, next) {
       });
     });
 
-    seneca.parent(rewrittenMappingArgs, done);
+    seneca.prior(rewrittenMappingArgs, done);
   });
 
   next();
